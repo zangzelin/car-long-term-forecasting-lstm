@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+#%% 
 from __future__ import print_function
 
 import time
@@ -18,6 +18,9 @@ def load_data(filename, seq_len, normalise_window):
     f = open(filename, 'rb').read()
     data = f.split(str.encode('\n'))
 
+    for i in range(len(data)):
+        data[i] = int(data[i])
+
     print('data len:',len(data))
     print('sequence len:',seq_len)
 
@@ -31,7 +34,7 @@ def load_data(filename, seq_len, normalise_window):
     print(result[:1])
 
     if normalise_window:
-        result = normalise_windows(result)
+        result,jilu = normalise_windows(result)
 
     print(result[:1])
     print('normalise_windows result shape:',np.array(result).shape)
@@ -50,14 +53,16 @@ def load_data(filename, seq_len, normalise_window):
     x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
     x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 
-    return [x_train, y_train, x_test, y_test]
+    return [x_train, y_train, x_test, y_test,jilu]
 
 def normalise_windows(window_data):
+    jilu = []
     normalised_data = []
     for window in window_data:   #window shape (sequence_length L ,)  即(51L,)
+        jilu.append(window[0])
         normalised_window = [((float(p) / float(window[0])) - 1) for p in window]
         normalised_data.append(normalised_window)
-    return normalised_data
+    return normalised_data,jilu
 
 def build_model(layers):  #layers [1,50,100,1]
     model = Sequential()
@@ -112,8 +117,8 @@ def plot_results(predicted_data, true_data, filename):
     ax.plot(true_data, label='True Data')
     plt.plot(predicted_data, label='Prediction')
     plt.legend()
-    plt.show()
     plt.savefig(filename+'.png')
+    plt.show()
 
 def plot_results_multiple(predicted_data, true_data, prediction_len):
     fig = plt.figure(facecolor='white')
@@ -124,17 +129,17 @@ def plot_results_multiple(predicted_data, true_data, prediction_len):
         padding = [None for p in range(i * prediction_len)]
         plt.plot(padding + data, label='Prediction')
         plt.legend()
-    plt.show()
     plt.savefig('plot_results_multiple.png')
+    plt.show()
 
 if __name__=='__main__':
     global_start_time = time.time()
-    epochs  = 10
+    epochs  = 30
     seq_len = 50
 
     print('> Loading data... ')
 
-    X_train, y_train, X_test, y_test = load_data('sp500.csv', seq_len, True)
+    X_train, y_train, X_test, y_test,jilu = load_data('sp500.csv', seq_len, True)
 
     print('X_train shape:',X_train.shape)  #(3709L, 50L, 1L)
     print('y_train shape:',y_train.shape)  #(3709L,)
@@ -161,3 +166,34 @@ if __name__=='__main__':
     plot_results_multiple(multiple_predictions, y_test, 50)
     plot_results(full_predictions,y_test,'full_predictions')
     plot_results(point_by_point_predictions,y_test,'point_by_point_predictions')
+
+    real_pre = []
+    real_data = []
+    for i in range(len(point_by_point_predictions)):
+        real_pre.append((point_by_point_predictions[i]+1) * jilu[42722+i])
+        real_data.append((y_test[i]+1) * jilu[42722+i])
+    
+    real_data = np.array(real_data)
+    real_pre = np.array(real_pre)
+
+    np.savetxt('n1.csv',real_data)
+    np.savetxt('n2.csv',real_pre)
+#%%
+error = 0
+for i in range(len(point_by_point_predictions)):
+    error += abs(point_by_point_predictions[i]-y_test[i])/(y_test[i]+1.1)
+error /= len(point_by_point_predictions)
+print('error1',error)
+#%%
+error = 0
+for i in range(len(point_by_point_predictions)):
+    error += abs(real_data[i]-real_pre[i])/real_data[i]
+
+error /= len(point_by_point_predictions)
+print('error2',error)
+#%% 
+print('~')
+plt.figure()
+plt.plot(real_data[:200])
+plt.plot(real_pre[:200])
+plt.show()
