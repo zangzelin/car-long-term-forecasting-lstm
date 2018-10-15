@@ -18,16 +18,23 @@ def load_data(filename, seq_len, normalise_window):
     f = open(filename, 'rb').read()
     data = f.split(str.encode('\n'))
 
+    # for i in range(len(data)):
+    #     data[i] = int(data[i])
+    
     for i in range(len(data)):
-        data[i] = int(data[i])
-
+        if i > 5:
+            data[i] = (int(data[i])+data[i-1]+data[i-2]+data[i-3]+data[i-4])/5
+        else:
+            data[i] = int(data[i])
+    
     print('data len:',len(data))
     print('sequence len:',seq_len)
 
     sequence_length = seq_len + 1
     result = []
     for index in range(len(data) - sequence_length):
-        result.append(data[index: index + sequence_length])  #得到长度为seq_len+1的向量，最后一个作为label
+        if sum( [ int(index>73 + i * 288 and index<264 + i * 288) for i in range(47520//288) ] ) > 0:
+            result.append(data[index: index + sequence_length])  #得到长度为seq_len+1的向量，最后一个作为label
 
     print('result len:',len(result))
     print('result shape:',np.array(result).shape)
@@ -43,6 +50,8 @@ def load_data(filename, seq_len, normalise_window):
 
     #划分train、test
     row = round(0.9 * result.shape[0])
+    # print(row)
+    # input()
     train = result[:row, :]
     np.random.shuffle(train)
     x_train = train[:, :-1]
@@ -178,10 +187,34 @@ if __name__=='__main__':
 
     np.savetxt('n1.csv',real_data)
     np.savetxt('n2.csv',real_pre)
+
+    error = 0
+    for i in range(len(point_by_point_predictions)):
+        error += abs(point_by_point_predictions[i]-y_test[i])/(y_test[i]+1.1)
+    error /= len(point_by_point_predictions)
+    print('error1',error)
+    #%%
+    error = 0
+    for i in range(len(point_by_point_predictions)):
+        error += abs(real_data[i]-real_pre[i])/real_data[i]
+
+    error /= len(point_by_point_predictions)
+    print('error2',error)
+    #%% 
+    print('~')
+    plt.figure()
+    plt.plot(real_data[:200])
+    plt.plot(real_pre[:200])
+    plt.show()
 #%%
+real_pre = []
+real_data = []
+for i in range(len(point_by_point_predictions)):
+    real_pre.append((point_by_point_predictions[i]+1) * jilu[28191+i])
+    real_data.append((y_test[i]+1) * jilu[28191+i])
 error = 0
 for i in range(len(point_by_point_predictions)):
-    error += abs(point_by_point_predictions[i]-y_test[i])/(y_test[i]+1.1)
+    error += abs(point_by_point_predictions[i]-y_test[i])/(y_test[i]+1.0)
 error /= len(point_by_point_predictions)
 print('error1',error)
 #%%
@@ -196,4 +229,12 @@ print('~')
 plt.figure()
 plt.plot(real_data[:200])
 plt.plot(real_pre[:200])
+plt.show()
+plt.figure()
+plt.plot(real_data[:400])
+plt.plot(real_pre[:400])
+plt.show()
+plt.figure()
+plt.plot(real_data[:800])
+plt.plot(real_pre[:800])
 plt.show()
