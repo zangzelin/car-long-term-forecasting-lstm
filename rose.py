@@ -8,14 +8,18 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 from numpy import newaxis
-from keras.layers.core import Dense, Activation, Dropout
+import tensorflow as tf 
+from keras import backend as K
+
+from keras.layers.core import Dense, Activation, Dropout, Lambda, Flatten
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
+from keras.utils.vis_utils import plot_model
 
 warnings.filterwarnings("ignore")
 
 
-def load_data(filename, seq_len, normalise_window):
+def load_data(filename, seq_len, normalise_window,lb):
     f = open(filename, 'rb').read()
     data = f.split(str.encode('\n'))
 
@@ -23,8 +27,12 @@ def load_data(filename, seq_len, normalise_window):
     #     data[i] = int(data[i])
 
     for i in range(len(data)):
-        if i > 5:
-            data[i] = (int(data[i])+data[i-1]+data[i-2]+data[i-3]+data[i-4])/5
+        if i > lb:
+            sum1 = 0
+            for j in range(lb):
+                sum1 += int(data[i-j])
+            data[i] = sum1/lb
+
         else:
             data[i] = int(data[i])
 
@@ -76,21 +84,29 @@ def normalise_windows(window_data):
                              for p in window]
         normalised_data.append(normalised_window)
     return normalised_data, jilu
+def rose(shuchu):
+    a = K.reshape(shuchu, (-1,500,1))
+    b = K.reshape(shuchu, (-1,1,500))
+    c = tf.multiply(a,b)
+
+    return c
+    # return shuchu
 
 
 def build_model(layers):  # layers [1,50,100,1]
     model = Sequential()
 
     model.add(
-        LSTM(input_dim=layers[0], output_dim=layers[1], return_sequences=True))
+        LSTM(10, input_dim=1, input_length=50, return_sequences=True))
     model.add(Dropout(0.2))
-
+    model.add(Lambda( rose))
+    # model.add(Lambda( lambda x : x**2 ))
     model.add(LSTM(layers[2], return_sequences=False))
+    model.add(Dense(200))
     model.add(Dropout(0.2))
-
     model.add(Dense(output_dim=layers[3]))
     model.add(Activation("linear"))
-
+    plot_model(model, to_file='Flatten.png', show_shapes=True)
     start = time.time()
     model.compile(loss="mse", optimizer="rmsprop")
     print("Compilation Time : ", time.time() - start)
@@ -144,7 +160,7 @@ def plot_results(predicted_data, true_data, filename):
     plt.plot(predicted_data, label='Prediction')
     plt.legend()
     plt.savefig(filename+'.png')
-    plt.show()
+    # plt.show()
 
 
 def plot_results_multiple(predicted_data, true_data, prediction_len):
@@ -157,18 +173,18 @@ def plot_results_multiple(predicted_data, true_data, prediction_len):
         plt.plot(padding + data, label='Prediction')
         plt.legend()
     plt.savefig('plot_results_multiple.png')
-    plt.show()
+    # plt.show()
 
 
-if __name__ == '__main__':
+def main(lb = 5):
     global_start_time = time.time()
-    epochs = 1
+    epochs = 100
     seq_len = 50
 
     print('> Loading data... ')
 
     X_train, y_train, X_test, y_test, jilu = load_data(
-        'sp500.csv', seq_len, True)
+        'sp500.csv', seq_len, True,lb)
 
     print('X_train shape:', X_train.shape)  # (3709L, 50L, 1L)
     print('y_train shape:', y_train.shape)  # (3709L,)
@@ -211,8 +227,6 @@ if __name__ == '__main__':
     real_data = np.array(real_data)
     real_pre = np.array(real_pre)
 
-    # np.savetxt('n1.csv', real_data)
-    # np.savetxt('n2.csv', real_pre)
 
     error = 0
     for i in range(len(point_by_point_predictions)):
@@ -226,3 +240,13 @@ if __name__ == '__main__':
 
     error /= len(point_by_point_predictions)
     print('error2', error)
+    return error
+
+
+if __name__ == '__main__':
+    for lb in range(10):
+        error =  main(5)
+        f = open('rose.txt','a')
+        f.write("{},{}\n".format(lb,error))
+        f.close()
+

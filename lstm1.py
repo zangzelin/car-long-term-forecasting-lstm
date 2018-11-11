@@ -78,15 +78,19 @@ def normalise_windows(window_data):
     return normalised_data, jilu
 
 
-def build_model(layers):  # layers [1,50,100,1]
+def build_model(layers,layer):  #layers [1,50,100,1]
     model = Sequential()
 
-    model.add(
-        LSTM(input_dim=layers[0], output_dim=layers[1], return_sequences=True))
+    model.add(LSTM(input_dim=layers[0],output_dim=layers[1],return_sequences=True))
     model.add(Dropout(0.2))
 
-    model.add(LSTM(layers[2], return_sequences=False))
-    model.add(Dropout(0.2))
+    for i in range(layer):
+        if i == layer - 1:
+            model.add(LSTM(layers[2],return_sequences=False))
+            model.add(Dropout(0.2))
+        else:
+            model.add(LSTM(layers[2],return_sequences=True))
+            model.add(Dropout(0.2))            
 
     model.add(Dense(output_dim=layers[3]))
     model.add(Activation("linear"))
@@ -144,7 +148,7 @@ def plot_results(predicted_data, true_data, filename):
     plt.plot(predicted_data, label='Prediction')
     plt.legend()
     plt.savefig(filename+'.png')
-    plt.show()
+    # plt.show()
 
 
 def plot_results_multiple(predicted_data, true_data, prediction_len):
@@ -157,12 +161,12 @@ def plot_results_multiple(predicted_data, true_data, prediction_len):
         plt.plot(padding + data, label='Prediction')
         plt.legend()
     plt.savefig('plot_results_multiple.png')
-    plt.show()
+    # plt.show()
 
+def main(layer):
 
-if __name__ == '__main__':
     global_start_time = time.time()
-    epochs = 30
+    epochs = 50
     seq_len = 50
 
     print('> Loading data... ')
@@ -177,7 +181,7 @@ if __name__ == '__main__':
 
     print('> Data Loaded. Compiling...')
 
-    model = build_model([1, 50, 100, 1])
+    model = build_model([1, 50, 100, 1],layer)
 
     model.fit(X_train, y_train, batch_size=512,
               nb_epoch=epochs, validation_split=0.05)
@@ -205,8 +209,8 @@ if __name__ == '__main__':
     real_pre = []
     real_data = []
     for i in range(len(point_by_point_predictions)):
-        real_pre.append((point_by_point_predictions[i]+1) * jilu[42722+i])
-        real_data.append((y_test[i]+1) * jilu[42722+i])
+        real_pre.append((point_by_point_predictions[i]+1) * jilu[28191+i])
+        real_data.append((y_test[i]+1) * jilu[28191+i])
 
     real_data = np.array(real_data)
     real_pre = np.array(real_pre)
@@ -231,52 +235,14 @@ if __name__ == '__main__':
     plt.figure()
     plt.plot(real_data[:200])
     plt.plot(real_pre[:200])
-    plt.show()
-# %%
-real_pre = []
-real_data = []
-for i in range(len(point_by_point_predictions)):
-    real_pre.append((point_by_point_predictions[i]+1) * jilu[28191+i])
-    real_data.append((y_test[i]+1) * jilu[28191+i])
-error = 0
-for i in range(len(point_by_point_predictions)):
-    error += abs(point_by_point_predictions[i]-y_test[i])/(y_test[i]+1.0)
-error /= len(point_by_point_predictions)
-print('error1', error)
-# %%
-error = 0
-for i in range(len(point_by_point_predictions)):
-    error += abs(real_data[i]-real_pre[i])/real_data[i]
+    # plt.show()
 
-error /= len(point_by_point_predictions)
-print('error2', error)
-# %%
-print('~')
-plt.figure()
-plt.plot(real_data[:200])
-plt.plot(real_pre[:200])
-plt.show()
-plt.figure()
-plt.plot(real_data[:400])
-plt.plot(real_pre[:400])
-plt.show()
-plt.figure()
-plt.plot(real_data[:800])
-plt.plot(real_pre[:800])
-plt.show()
-# %%
-import matplotlib.pyplot as plt
-import numpy as np
-import mpld3
+    return error
 
-mpld3.enable_notebook()
-fig, ax = plt.subplots(subplot_kw=dict(axisbg='#EEEEEE'))
-ax.grid(color='white', linestyle='solid')
-N = 50
-scatter = ax.scatter(np.random.normal(size=N),
-                     np.random.normal(size=N),
-                     c=np.random.random(size=N),
-                     s=1000 * np.random.random(size=N),
-                     alpha=0.3,
-                     cmap=plt.cm.jet)
-ax.set_title("D3 Scatter Plot", size=18)
+
+if __name__ == '__main__':
+    for i in range(1,11):
+        error = main(i)
+        f = open('mutilayer.txt','a')
+        f.write("{},{},{}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),i,error))
+        f.close()
