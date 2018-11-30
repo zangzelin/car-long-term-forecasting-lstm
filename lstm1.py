@@ -166,7 +166,7 @@ def plot_results_multiple(predicted_data, true_data, prediction_len):
 def main(layer):
 
     global_start_time = time.time()
-    epochs = 50
+    epochs = 30
     seq_len = 50
 
     print('> Loading data... ')
@@ -241,7 +241,7 @@ def main(layer):
 
 
 if __name__ == '__main__':
-    for i in range(1,11):
+    for i in range(1,20):
         error = main(i)
         f = open('mutilayer.txt','a')
         f.write("{},{},{}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),i,error))
